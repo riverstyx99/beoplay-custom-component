@@ -22,7 +22,7 @@ from homeassistant.components.media_player.const import (
     SUPPORT_TURN_OFF, SUPPORT_TURN_ON, SUPPORT_VOLUME_MUTE, SUPPORT_VOLUME_SET,
     SUPPORT_STOP, SUPPORT_PLAY, SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
-    ATTR_ENTITY_ID, CONF_HOST, CONF_NAME, CONF_API_VERSION, STATE_OFF, STATE_ON, STATE_PAUSED, STATE_PLAYING, STATE_UNKNOWN, EVENT_HOMEASSISTANT_START, EVENT_HOMEASSISTANT_STOP)
+    ATTR_ENTITY_ID, CONF_HOST, CONF_NAME, CONF_TYPE, CONF_API_VERSION, STATE_OFF, STATE_ON, STATE_PAUSED, STATE_PLAYING, STATE_UNKNOWN, EVENT_HOMEASSISTANT_START, EVENT_HOMEASSISTANT_STOP)
 from homeassistant.core import callback
 from homeassistant.helpers.script import Script
 import homeassistant.helpers.config_validation as cv
@@ -46,10 +46,12 @@ SUPPORT_BEOPLAY = SUPPORT_PAUSE | SUPPORT_VOLUME_SET | SUPPORT_VOLUME_MUTE | \
 DEFAULT_DEVICE = 'default'
 DEFAULT_HOST = '127.0.0.1'
 DEFAULT_NAME = 'BeoPlay'
+DEFAULT_TYPE = 'default'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST, default=DEFAULT_HOST): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+    vol.Optional(CONF_TYPE, default=DEFAULT_TYPE): cv.string,
 })
 
 DATA_BEOPLAY = 'beoplay_media_player'
@@ -64,7 +66,7 @@ class BeoPlayData:
     def __init__(self):
         self.entities = []
 
-def _add_player(hass, async_add_devices, host, name):
+def _add_player(hass, async_add_devices, host, name, type):
     """Add speakers."""
 
     import beoplay as beoplay
@@ -81,7 +83,7 @@ def _add_player(hass, async_add_devices, host, name):
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _stop_polling)
 
-    beoplayapi = beoplay.BeoPlay(host)
+    beoplayapi = beoplay.BeoPlay(host, type)
     speaker = BeoPlay(hass, beoplayapi, name)
     async_add_devices([speaker])
     _LOGGER.info("Added device with name: %s", speaker._name)
@@ -97,6 +99,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
     name = config.get(CONF_NAME)
     host = config.get(CONF_HOST)
+    type = config.get(CONF_TYPE)
 
     if DATA_BEOPLAY not in hass.data:
         hass.data[DATA_BEOPLAY] = BeoPlayData()
@@ -130,7 +133,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     hass.services.async_register(DOMAIN, "beoplay_join_experience", join_experience, schema=EXPERIENCE_SCHEMA)
     hass.services.async_register(DOMAIN, "beoplay_leave_experience", leave_experience, schema=EXPERIENCE_SCHEMA)
 
-    _add_player(hass, async_add_devices, host, name)
+    _add_player(hass, async_add_devices, host, name, type)
 
 
 class BeoPlay(MediaPlayerDevice):
@@ -409,3 +412,4 @@ class BeoPlay(MediaPlayerDevice):
             self._speaker.getSources()
             self._sources = self._speaker.sources
             self._firstRun = False
+
